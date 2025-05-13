@@ -1280,7 +1280,6 @@ async def submit_bid(bid: BidRequest):
         conn.close()
         raise HTTPException(status_code=404, detail="Event not found")
 
-    # Insert the bid into the Mark_bidding table
     cursor.execute('''
         INSERT INTO Mark_bidding (user_id, event_id, event_type, bid_amount, currency, remarks)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -1304,12 +1303,10 @@ def View_bidding():
             res =cursor.fetchall();
             if not res:
                error_list.append("No event found in the database.")
-            #raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not found")
             keys = ['bid_id','user_id','event_id','event_type','bid_amount','currency','remarks','status']
             bid_dict_list = [dict(zip(keys, item)) for item in res]
         except Exception as e:
             error_list.append(f"An error occurred: {str(e)}")
-        #raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal Server Error")
         finally:
             conn.commit()
             conn.close()
@@ -1323,47 +1320,46 @@ def View_bidding():
   
     return {"Biddings_data ":bidding_dict_list}
 
+
+
+
 # Endpoint to select the winning bid
 @app.post("/select_bid/")
 async def select_bid(select_bid: SelectBidRequest):
 
     conn = sqlite3.connect('event_management.db')
     cursor = conn.cursor()
-    # Check if the event exists
+
     cursor.execute('SELECT * FROM Event_Organisers WHERE organiser_event_id = ? AND event_type = ?', 
                    (select_bid.event_id, select_bid.event_type))
     event = cursor.fetchone()
     
     if not event:
         conn.close()
-        raise HTTPException(status_code=404, detail="Event not found")
+        raise HTTPException(status_code=404, detail="Event Not Found")
 
-    # Check if the bid exists for the event in Mark_bidding
-    cursor.execute('SELECT * FROM Mark_bidding WHERE bid_id = ? AND event_id = ?', 
+    cursor.execute('SELECT * FROM Mark_bidding WHERE bid_id = ? AND event_id = ?',   
                    (select_bid.bid_id, select_bid.event_id))
+    
     bid = cursor.fetchone()
 
     if not bid:
         conn.close()
         raise HTTPException(status_code=404, detail="Bid not found for this event")
 
-    # Update the Mark_bidding table to set status to "closed"
     cursor.execute('''
         UPDATE Mark_bidding
-        SET status = 'closed'
-        WHERE bid_id = ?
+                   SET status = 'Closed'
+                   WHERE bid_id = ? AND status != 'Closed'
     ''', (select_bid.bid_id,))
     
     conn.commit()
-
-    # Return the selected bid details
     selected_bid = {
-        "bid_id": bid[0],  # Assuming bid_id is the first column in Mark_bidding
-        "event_id": bid[1],  # Assuming event_id is the second column in Mark_bidding
-        "event_type": bid[2],  # Assuming event_type is the third column in Mark_bidding
-        "bid_amount": bid[3]  # Assuming bid_amount is the fourth column in Mark_bidding
+        "bid_id": bid[0],  
+        "event_id": bid[1],  
+        "event_type": bid[2], 
+        "bid_amount": bid[3]  
     }
-
     conn.close()
 
     return {"selected_bid": selected_bid}
@@ -1464,6 +1460,7 @@ def get_profiles(profile_number: int = Query(..., description="Profile number (1
         2: "Venue Provider"
     }
 
+    # If profile_number is 1 or 2, get specific profile types that are active
     if profile_number in profile_type_map:
         profile_type = profile_type_map[profile_number]
         cursor.execute('''
@@ -1497,7 +1494,7 @@ def get_profiles(profile_number: int = Query(..., description="Profile number (1
             "experience": row[3],
             "thumbnail_image": row[4],
             "profile_type": row[5],
-            "user_id": row[6]  
+            "user_id": row[6]  # Include user_id in the response
         }
         for row in cursor.fetchall()
     ]
