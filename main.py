@@ -1259,6 +1259,9 @@ def get_booked_dates_event_planner(profile_type: Optional[str] = None, profile_i
 
 
 
+
+
+
 # Endpoint to submit a new bid
 @app.post("/submit_bid/")
 async def submit_bid(bid: BidRequest):
@@ -1273,7 +1276,10 @@ async def submit_bid(bid: BidRequest):
         raise HTTPException(status_code=404, detail="User not found")
 
     # Check if the event exists
-    cursor.execute('SELECT * FROM Event_Organisers WHERE organiser_event_id = ?', (bid.event_id,))
+    cursor.execute('''
+        SELECT * FROM Event_Organisers 
+        WHERE organiser_event_id = ? AND organiser_id = ?
+    ''', (bid.event_id, bid.user_id))
     event = cursor.fetchone()
     
     if not event:
@@ -1283,12 +1289,14 @@ async def submit_bid(bid: BidRequest):
     cursor.execute('''
         INSERT INTO Mark_bidding (user_id, event_id, event_type, bid_amount, currency, remarks)
         VALUES (?, ?, ?, ?, ?, ?)
-    ''', (bid.user_id, bid.event_id, bid.event_type, bid.bid_amount, bid.currency, bid.remarks))
+    ''', (bid.user_id, bid.event_id, bid.event_type, bid.bid_amount, bid.currency, "Pending"))
 
     conn.commit()
     conn.close()
 
     return {"message": "Bid submitted successfully!"}
+
+
 
 # view bidding
 @app.get("/view_bidding")
@@ -1305,6 +1313,7 @@ def View_bidding():
                error_list.append("No event found in the database.")
             keys = ['bid_id','user_id','event_id','event_type','bid_amount','currency','remarks','status']
             bid_dict_list = [dict(zip(keys, item)) for item in res]
+
         except Exception as e:
             error_list.append(f"An error occurred: {str(e)}")
         finally:
@@ -1313,8 +1322,6 @@ def View_bidding():
             return bid_dict_list
     future = executor.submit(fetch_bidding__data)
     bidding_dict_list = future.result()
-
-    # Check if there were any errors
     if error_list:
         return {"errors": error_list}
   
