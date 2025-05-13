@@ -1259,9 +1259,6 @@ def get_booked_dates_event_planner(profile_type: Optional[str] = None, profile_i
 
 
 
-
-
-
 # Endpoint to submit a new bid
 @app.post("/submit_bid/")
 async def submit_bid(bid: BidRequest):
@@ -1276,27 +1273,24 @@ async def submit_bid(bid: BidRequest):
         raise HTTPException(status_code=404, detail="User not found")
 
     # Check if the event exists
-    cursor.execute('''
-        SELECT * FROM Event_Organisers 
-        WHERE organiser_event_id = ? AND organiser_id = ?
-    ''', (bid.event_id, bid.user_id))
+    cursor.execute('SELECT * FROM Event_Organisers WHERE organiser_event_id = ?', (bid.event_id,))
     event = cursor.fetchone()
     
     if not event:
         conn.close()
         raise HTTPException(status_code=404, detail="Event not found")
 
+    # Insert the bid into the Mark_bidding table
     cursor.execute('''
-        INSERT INTO Mark_bidding (user_id, event_id, event_type, bid_amount, currency, remarks)
-        VALUES (?, ?, ?, ?, ?, ?)
-    ''', (bid.user_id, bid.event_id, bid.event_type, bid.bid_amount, bid.currency, "Pending"))
+    INSERT INTO Mark_bidding (user_id, event_id, event_type, bid_amount, currency, remarks, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+''', (bid.user_id, bid.event_id, bid.event_type, bid.bid_amount, bid.currency, bid.remarks, "Pending"))
+
 
     conn.commit()
     conn.close()
 
     return {"message": "Bid submitted successfully!"}
-
-
 
 # view bidding
 @app.get("/view_bidding")
@@ -1313,22 +1307,21 @@ def View_bidding():
                error_list.append("No event found in the database.")
             keys = ['bid_id','user_id','event_id','event_type','bid_amount','currency','remarks','status']
             bid_dict_list = [dict(zip(keys, item)) for item in res]
-
         except Exception as e:
             error_list.append(f"An error occurred: {str(e)}")
+        #raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal Server Error")
         finally:
             conn.commit()
             conn.close()
             return bid_dict_list
     future = executor.submit(fetch_bidding__data)
     bidding_dict_list = future.result()
+
+    # Check if there were any errors
     if error_list:
         return {"errors": error_list}
   
     return {"Biddings_data ":bidding_dict_list}
-
-
-
 
 # Endpoint to select the winning bid
 @app.post("/select_bid/")
@@ -1372,8 +1365,6 @@ async def select_bid(select_bid: SelectBidRequest):
 
 
 
-
-
 def get_user_by_id(user_id: int):
     conn = sqlite3.connect('event_management.db', timeout=10)
     cursor = conn.cursor()
@@ -1392,7 +1383,7 @@ def get_user_by_id(user_id: int):
     
     if not user_row:
         conn.close()
-        return None 
+        return None  # User not found
 
     # Define basic user info keys
     user_keys = ["user_id", "first_name", "last_name", "business_name", "email",
@@ -1412,6 +1403,7 @@ def get_user_by_id(user_id: int):
     events = [{"event_name": row[0], "number_of_guests": row[1], "start_date": row[2], "end_date": row[3]} for row in cursor.fetchall()]
     user_info["events"] = events
 
+    # Fetch payments for this user
     cursor.execute('''
         SELECT payment_amount, payment_type, payment_status FROM Payments WHERE user_id = ?
     ''', (user_id,))
