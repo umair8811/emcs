@@ -1333,33 +1333,32 @@ def View_bidding():
 # Endpoint to select the winning bid
 @app.post("/select_bid/")
 async def select_bid(select_bid: SelectBidRequest):
-
     conn = sqlite3.connect('event_management.db')
     cursor = conn.cursor()
 
     cursor.execute('SELECT * FROM Event_Organisers WHERE organiser_event_id = ? AND event_type = ?', 
                    (select_bid.event_id, select_bid.event_type))
     event = cursor.fetchone()
-    
     if not event:
         conn.close()
         raise HTTPException(status_code=404, detail="Event Not Found")
 
-    cursor.execute('SELECT * FROM Mark_bidding WHERE bid_id = ? AND event_id = ?',   
-                   (select_bid.bid_id, select_bid.event_id))
-    
+    cursor.execute('''
+        SELECT * FROM Mark_bidding 
+        WHERE bid_id = ? AND event_id = ? AND status = 'Pending'
+    ''', (select_bid.bid_id, select_bid.event_id))
     bid = cursor.fetchone()
 
     if not bid:
         conn.close()
-        raise HTTPException(status_code=404, detail="Bid not found for this event")
+        raise HTTPException(status_code=404, detail="No pending bid found with this ID for the event")
 
     cursor.execute('''
         UPDATE Mark_bidding
-                   SET status = 'Closed'
-                   WHERE bid_id = ? AND status != 'Closed'
+        SET status = 'Closed'
+        WHERE bid_id = ? AND status = 'Pending'
     ''', (select_bid.bid_id,))
-    
+
     conn.commit()
     selected_bid = {
         "bid_id": bid[0],  
@@ -1368,8 +1367,9 @@ async def select_bid(select_bid: SelectBidRequest):
         "bid_amount": bid[3]  
     }
     conn.close()
-
     return {"selected_bid": selected_bid}
+
+
 
 
 
@@ -1392,7 +1392,7 @@ def get_user_by_id(user_id: int):
     
     if not user_row:
         conn.close()
-        return None  # User not found
+        return None 
 
     # Define basic user info keys
     user_keys = ["user_id", "first_name", "last_name", "business_name", "email",
@@ -1412,7 +1412,6 @@ def get_user_by_id(user_id: int):
     events = [{"event_name": row[0], "number_of_guests": row[1], "start_date": row[2], "end_date": row[3]} for row in cursor.fetchall()]
     user_info["events"] = events
 
-    # Fetch payments for this user
     cursor.execute('''
         SELECT payment_amount, payment_type, payment_status FROM Payments WHERE user_id = ?
     ''', (user_id,))
