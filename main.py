@@ -11,6 +11,41 @@ from typing import Optional
 #API instance
 app = FastAPI()
  
+
+
+@app.delete("/delete-all-except-user13")
+def delete_all_except_user13():
+    try:
+        conn = sqlite3.connect("event_management.db")
+        conn.execute('PRAGMA foreign_keys = ON;')
+        cursor = conn.cursor()
+
+        # Updated list of tables to clear (excluding Profile_Type and User_Type)
+        tables_to_clear = [
+            "Profile", "Packages", "Package_Details", "Package_images",
+            "Events", "Payments", "Event_Organisers", "Mark_bidding"
+        ]
+
+        cursor.execute("PRAGMA foreign_keys = OFF;")
+        
+        for table in tables_to_clear:
+            cursor.execute(f"DELETE FROM {table}")
+
+        cursor.execute("DELETE FROM Users WHERE user_id != 13")
+
+        cursor.execute("PRAGMA foreign_keys = ON;")
+
+        conn.commit()
+        conn.close()
+        return {"message": "All data deleted successfully except user with ID 13"}
+    
+    except sqlite3.Error as e:
+        return {"error": str(e)}
+
+    
+
+
+
 @app.get("/users_type")
 def users_type():  
     error_list = []
@@ -1155,7 +1190,7 @@ def create_event(event: EventCreateRequest, user_id: int):
     # Check if user is an event organizer (profile_type_id == 5)
     if not result or result[0] != 5:
         conn.close()
-        raise HTTPException(status_code=403, detail="Permission denied: User is not an event organizer")
+        raise HTTPException(status_code=403, detail="Permission denied: User is not an Event Organizer")
 
     service_type_str = ','.join(event.service_type)
 
