@@ -30,6 +30,7 @@ class Profile(BaseModel):
     #profile_id:int 
     Company_Name:str
     Contact_Detail:str
+    Location:str
     Experience:str
     Thumbnail_Image:str
     profile_type_id:int 
@@ -52,13 +53,11 @@ class Packages(BaseModel):
     user_id:int
 
 class Package_Details(BaseModel):
-  #  package_dtl_id:int 
     package_header_image:str
-    # package_image:List[str] 
     package_id:int 
 
 class Package_Details_images(BaseModel):
-  #  package_dtl_id:int 
+
     package_dtl_id:int 
     package_image: str
     image_desc: str 

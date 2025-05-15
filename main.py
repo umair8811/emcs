@@ -7,10 +7,36 @@ from fastapi import status,FastAPI,HTTPException,Depends,Query
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from typing import Optional
+import httpx
 
 #API instance
 app = FastAPI()
  
+
+
+@app.get("/location/suggestions")
+async def get_location_suggestions(input: str = Query(..., min_length=1)):
+    url = "https://nominatim.openstreetmap.org/search"
+    params = {
+        "q": input,
+        "format": "json",
+        "addressdetails": 1,
+        "limit": 5,
+        "countrycodes": "pk"  # 🔍 Filter to Pakistan only
+    }
+
+    headers = {
+        "User-Agent": "MyApp/1.0"
+    }
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url, params=params, headers=headers)
+        data = response.json()
+
+    suggestions = [item["display_name"] for item in data]
+    return {"suggestions": suggestions}
+
+
 
 
 @app.delete("/delete-all-except-user13")
@@ -485,7 +511,6 @@ def create_profile(profile: Profile):
     conn = sqlite3.connect('event_management.db', timeout=10) 
     cursor = conn.cursor()
 
-    # Check if profile_type_id exists in Profile_Type
     cursor.execute("SELECT COUNT(*) FROM Profile_Type WHERE profile_type_id = ?", (profile.profile_type_id,))
     profile_type_exists = cursor.fetchone()[0]
 
@@ -507,7 +532,6 @@ def create_profile(profile: Profile):
         conn.close()
         raise HTTPException(status_code=400, detail="A profile already exists for this user.")
 
-
     # Insert new profile into the Profile table
     cursor.execute("""
         INSERT INTO Profile (company_name, contact_detail, experience, thumbnail_image, profile_type_id, user_id)
@@ -521,10 +545,11 @@ def create_profile(profile: Profile):
     new_profile = cursor.fetchone()
     keys = ['profile_id', 'company_name', 'contact_detail', 'experience', 'thumbnail_image', 'profile_type_id', 'user_id']
     profile_dict = dict(zip(keys, new_profile))
-
     conn.close()
-    
     return {"profile": profile_dict}
+
+
+
 
 
 #update_profile
@@ -897,7 +922,6 @@ def Create_Book_Event(event: Events):
     conn = sqlite3.connect('event_management.db', timeout=10)
     cursor = conn.cursor()
 
-    # Insert the new event
     cursor.execute(
         """
         INSERT INTO Events (event_name, number_of_guests, package_id, start_date, end_date,user_id,profile_id,location)
@@ -906,10 +930,8 @@ def Create_Book_Event(event: Events):
         (event.event_name, event.number_of_guests, event.package_id, event.start_date.strftime("%Y-%m-%d"),event.end_date.strftime("%Y-%m-%d"), event.user_id,event.profile_id,event.location)
     )
 
-    # Get the last inserted event ID
     event_id = cursor.lastrowid
 
-    # Fetch only the newly created event
     cursor.execute("SELECT * FROM Events WHERE event_id = ?", (event_id,))
     row = cursor.fetchone()
 
@@ -962,7 +984,6 @@ async def Booked_Events(user_id: int):
     conn = sqlite3.connect('event_management.db', timeout=10)
     cursor = conn.cursor()
 
-    # Step 1: Check if the user exists and retrieve their details
     user_query = '''
     SELECT first_name, last_name, business_name, email, location, contact
     FROM Users
@@ -977,8 +998,8 @@ async def Booked_Events(user_id: int):
 
     user_data = {
         "user_details": {
-            "first_name": user[0],  # index 0 corresponds to first_name
-            "last_name": user[1],   # index 1 corresponds to last_name
+            "first_name": user[0],
+            "last_name": user[1],   
             "business_name": user[2],
             "email": user[3],
             "location": user[4],
@@ -997,40 +1018,36 @@ async def Booked_Events(user_id: int):
     profiles = cursor.fetchall()
 
     if profiles:
-        # Step 3: For each profile, retrieve events associated with the profile_id
+
         for profile in profiles:
             profile_data = {
-                "profile_id": profile[0],         # index 0 corresponds to profile_id
-                "company_name": profile[1],       # index 1 corresponds to company_name
-                "contact_detail": profile[2],     # index 2 corresponds to contact_detail
-                "experience": profile[3],         # index 3 corresponds to experience
-                "thumbnail_image": profile[4],    # index 4 corresponds to thumbnail_image
+                "profile_id": profile[0],         
+                "company_name": profile[1],      
+                "contact_detail": profile[2],    
+                "experience": profile[3],         
+                "thumbnail_image": profile[4],    
                 "events": []
             }
-
-    
             events_query = '''
             SELECT event_id, event_name, number_of_guests, start_date, end_date, location, payment_status, user_id
             FROM Events
             WHERE profile_id = ?
             '''
-            cursor.execute(events_query, (profile[0],))  # profile[0] is the profile_id
+            cursor.execute(events_query, (profile[0],))  
             events = cursor.fetchall()
-
-            # For each event, fetch user details from the Users table
+          
             for event in events:
                 event_data = {
-                    "event_id": event[0],             # index 0 corresponds to event_id
-                    "event_name": event[1],           # index 1 corresponds to event_name
-                    "number_of_guests": event[2],     # index 2 corresponds to number_of_guests
-                    "start_date": event[3],           # index 3 corresponds to start_date
-                    "end_date": event[4],             # index 4 corresponds to end_date
-                    "location": event[5],             # index 5 corresponds to location
-                    "payment_status": event[6]        # index 6 corresponds to payment_status
+                    "event_id": event[0],             
+                    "event_name": event[1],          
+                    "number_of_guests": event[2],     
+                    "start_date": event[3],           
+                    "end_date": event[4],             
+                    "location": event[5],            
+                    "payment_status": event[6]        
                 }
 
-                # Fetch user details for the user_id from the event
-                user_id_from_event = event[7]  # index 7 corresponds to user_id from the event
+                user_id_from_event = event[7] 
                 user_query_for_event = '''
                 SELECT first_name, last_name, business_name, email, location, contact
                 FROM Users
@@ -1041,8 +1058,8 @@ async def Booked_Events(user_id: int):
 
                 if user_from_event:
                     event_data["user_info_who_booked_event"] = {
-                        "first_name": user_from_event[0],  # index 0 corresponds to first_name
-                        "last_name": user_from_event[1],   # index 1 corresponds to last_name
+                        "first_name": user_from_event[0],  
+                        "last_name": user_from_event[1],   
                         "business_name": user_from_event[2],
                         "email": user_from_event[3],
                         "location": user_from_event[4],
@@ -1054,6 +1071,8 @@ async def Booked_Events(user_id: int):
             user_data["profiles"].append(profile_data)
     conn.close()
     return user_data
+
+
 
 
 
@@ -1482,12 +1501,13 @@ def get_user_packages(user_id: int):
     conn.close()
     return {"packages_info": packages_info}
 
+
+
 @app.get("/all_profiles_info/")
 def get_profiles(profile_number: int = Query(..., description="Profile number (1 for event organizer, 2 for venue provider, 3 for other profiles)")):
     conn = sqlite3.connect('event_management.db')
     cursor = conn.cursor()
     
-    # Define profile type mappings
     profile_type_map = {
         1: "event organizer",
         2: "Venue Provider"
@@ -1531,9 +1551,7 @@ def get_profiles(profile_number: int = Query(..., description="Profile number (1
         }
         for row in cursor.fetchall()
     ]
-
     conn.close()
-
     return {"profiles": profiles}
 
 
