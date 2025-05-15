@@ -13,29 +13,30 @@ import httpx
 app = FastAPI()
  
 
+GOOGLE_API_KEY = "AIzaSyAp20g6xj_DL4-UT0zBg__Cz4bnOBYU-Ac"  
 
 @app.get("/location/suggestions")
 async def get_location_suggestions(input: str = Query(..., min_length=1)):
-    url = "https://nominatim.openstreetmap.org/search"
+    url = "https://maps.googleapis.com/maps/api/place/autocomplete/json"
     params = {
-        "q": input,
-        "format": "json",
-        "addressdetails": 1,
-        "limit": 5,
-        "countrycodes": "pk"  # 🔍 Filter to Pakistan only
-    }
-
-    headers = {
-        "User-Agent": "MyApp/1.0"
+        "input": input,
+        "key": GOOGLE_API_KEY,
+        "types": "geocode",
+        "language": "en",
+        "components": "country:pk",           
+        "location": "31.4504,73.1350",           
+        "radius": "25000"                        # 25 km around Faisalabad
     }
 
     async with httpx.AsyncClient() as client:
-        response = await client.get(url, params=params, headers=headers)
+        response = await client.get(url, params=params)
         data = response.json()
 
-    suggestions = [item["display_name"] for item in data]
-    return {"suggestions": suggestions}
+    if data.get("status") != "OK":
+        return {"error": data.get("status", "Unknown error")}
 
+    suggestions = [item["description"] for item in data.get("predictions", [])]
+    return {"suggestions": suggestions}
 
 
 
@@ -505,15 +506,19 @@ def profile_type():
 
 
 
+from fastapi import HTTPException, status
+import sqlite3
 
 @app.post("/Create_profile", status_code=status.HTTP_201_CREATED)
 def create_profile(profile: Profile):
     conn = sqlite3.connect('event_management.db', timeout=10) 
     cursor = conn.cursor()
 
+    # Check if profile_type_id exists
     cursor.execute("SELECT COUNT(*) FROM Profile_Type WHERE profile_type_id = ?", (profile.profile_type_id,))
     profile_type_exists = cursor.fetchone()[0]
 
+    # Check if user_id exists
     cursor.execute("SELECT COUNT(*) FROM Users WHERE user_id = ?", (profile.user_id,))
     user_exists = cursor.fetchone()[0]
 
@@ -525,6 +530,7 @@ def create_profile(profile: Profile):
         conn.close()
         raise HTTPException(status_code=400, detail="User ID does not exist.")
 
+    # Check if profile already exists for user
     cursor.execute("SELECT COUNT(*) FROM Profile WHERE user_id = ?", (profile.user_id,))
     profile_exists = cursor.fetchone()[0]
 
@@ -532,19 +538,30 @@ def create_profile(profile: Profile):
         conn.close()
         raise HTTPException(status_code=400, detail="A profile already exists for this user.")
 
-    # Insert new profile into the Profile table
+    # Insert new profile
     cursor.execute("""
-        INSERT INTO Profile (company_name, contact_detail, experience, thumbnail_image, profile_type_id, user_id)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, (profile.Company_Name, profile.Contact_Detail, profile.Experience, profile.Thumbnail_Image, profile.profile_type_id, profile.user_id))
+        INSERT INTO Profile (company_name, contact_detail, location, experience, thumbnail_image, profile_type_id, user_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (
+        profile.Company_Name,
+        profile.Contact_Detail,
+        profile.Location,
+        profile.Experience,
+        profile.Thumbnail_Image,
+        profile.profile_type_id,
+        profile.user_id
+    ))
 
     conn.commit()
 
     # Fetch the newly created profile
     cursor.execute("SELECT * FROM Profile WHERE user_id = ?", (profile.user_id,))
     new_profile = cursor.fetchone()
-    keys = ['profile_id', 'company_name', 'contact_detail', 'experience', 'thumbnail_image', 'profile_type_id', 'user_id']
+
+    # Ensure order of keys matches your table schema
+    keys = ['profile_id', 'company_name', 'contact_detail', 'location', 'experience', 'thumbnail_image', 'profile_type_id', 'user_id', 'isActive']
     profile_dict = dict(zip(keys, new_profile))
+
     conn.close()
     return {"profile": profile_dict}
 
@@ -1513,12 +1530,11 @@ def get_profiles(profile_number: int = Query(..., description="Profile number (1
         2: "Venue Provider"
     }
 
-    # If profile_number is 1 or 2, get specific profile types that are active
     if profile_number in profile_type_map:
         profile_type = profile_type_map[profile_number]
         cursor.execute('''
-            SELECT Profile.profile_id, Profile.company_name, Profile.contact_detail, Profile.experience, 
-                   Profile.thumbnail_image, Profile_Type.profile_type, Profile.user_id
+            SELECT Profile.profile_id, Profile.company_name, Profile.contact_detail, Profile.location, 
+                   Profile.experience, Profile.thumbnail_image, Profile_Type.profile_type, Profile.user_id
             FROM Profile
             INNER JOIN Profile_Type ON Profile.profile_type_id = Profile_Type.profile_type_id
             WHERE Profile_Type.profile_type = ? AND Profile.isActive = 1
@@ -1526,15 +1542,14 @@ def get_profiles(profile_number: int = Query(..., description="Profile number (1
     
     elif profile_number == 3:
         cursor.execute('''
-            SELECT Profile.profile_id, Profile.company_name, Profile.contact_detail, Profile.experience, 
-                   Profile.thumbnail_image, Profile_Type.profile_type, Profile.user_id
+            SELECT Profile.profile_id, Profile.company_name, Profile.contact_detail, Profile.location, 
+                   Profile.experience, Profile.thumbnail_image, Profile_Type.profile_type, Profile.user_id
             FROM Profile
             INNER JOIN Profile_Type ON Profile.profile_type_id = Profile_Type.profile_type_id
             WHERE Profile_Type.profile_type NOT IN ('event organizer', 'Venue Provider', 'Super Admin', 'Admin')
             AND Profile.isActive = 1
         ''')
     
-    # Invalid profile_number
     else:
         conn.close()
         raise HTTPException(status_code=400, detail="Invalid profile number. Use 1 for event organizer, 2 for venue provider, 3 for other profiles.")
@@ -1544,15 +1559,17 @@ def get_profiles(profile_number: int = Query(..., description="Profile number (1
             "profile_id": row[0],
             "company_name": row[1],
             "contact_detail": row[2],
-            "experience": row[3],
-            "thumbnail_image": row[4],
-            "profile_type": row[5],
-            "user_id": row[6]  # Include user_id in the response
+            "location": row[3],
+            "experience": row[4],
+            "thumbnail_image": row[5],
+            "profile_type": row[6],
+            "user_id": row[7]
         }
         for row in cursor.fetchall()
     ]
     conn.close()
     return {"profiles": profiles}
+
 
 
 
