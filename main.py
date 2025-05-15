@@ -31,8 +31,9 @@ async def get_location_suggestions(input: str = Query(..., min_length=1)):
     }
 
     headers = {
-        "User-Agent": "MyApp/1.0"
-    }
+    "User-Agent": "MyApp/1.0",
+    "Accept-Language": "en"  # 🔤 Force English results
+}
 
     async with httpx.AsyncClient() as client:
         response = await client.get(url, params=params, headers=headers)
