@@ -13,30 +13,38 @@ import httpx
 app = FastAPI()
  
 
-GOOGLE_API_KEY = "AIzaSyAp20g6xj_DL4-UT0zBg__Cz4bnOBYU-Ac"  
 
-@app.get("/location/suggestions")
-async def get_location_suggestions(input: str = Query(..., min_length=1)):
-    url = "https://maps.googleapis.com/maps/api/place/autocomplete/json"
-    params = {
-        "input": input,
-        "key": GOOGLE_API_KEY,
-        "types": "geocode",
-        "language": "en",
-        "components": "country:pk",           
-        "location": "31.4504,73.1350",           
-        "radius": "25000"                        # 25 km around Faisalabad
-    }
 
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url, params=params)
-        data = response.json()
 
-    if data.get("status") != "OK":
-        return {"error": data.get("status", "Unknown error")}
 
-    suggestions = [item["description"] for item in data.get("predictions", [])]
-    return {"suggestions": suggestions}
+
+
+
+# GOOGLE_API_KEY = "AIzaSyAp20g6xj_DL4-UT0zBg__Cz4bnOBYU-Ac"
+
+# @app.get("/location/suggestions")
+# async def get_location_suggestions(input: str = Query(..., min_length=1)):
+#     url = "https://maps.googleapis.com/maps/api/place/autocomplete/json"
+#     params = {
+#         "input": input,
+#         "key": GOOGLE_API_KEY,
+#         "types": "geocode",
+#         "language": "en",
+#         "components": "country:pk",
+#         "location": "31.4504,73.1350",   # Faisalabad center
+#         "radius": "25000"                # 25km radius
+#     }
+
+#     async with httpx.AsyncClient() as client:
+#         response = await client.get(url, params=params)
+#         data = response.json()
+
+#     if data.get("status") != "OK":
+#         return {"error": data.get("status", "Unknown error")}
+
+#     suggestions = [item["description"] for item in data.get("predictions", [])]
+#     return {"suggestions": suggestions}
+
 
 
 
