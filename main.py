@@ -18,12 +18,16 @@ app = FastAPI()
 @app.get("/location/suggestions")
 async def get_location_suggestions(input: str = Query(..., min_length=1)):
     url = "https://nominatim.openstreetmap.org/search"
+
+    viewbox = "73.0000,31.6000,73.2700,31.3000"
     params = {
         "q": input,
         "format": "json",
         "addressdetails": 1,
         "limit": 5,
-        "countrycodes": "pk"  # 🔍 Filter to Pakistan only
+        "countrycodes": "pk",
+        "viewbox": viewbox,
+        "bounded": 1
     }
 
     headers = {
