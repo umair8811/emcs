@@ -15,6 +15,27 @@ app = FastAPI()
 
 
 
+@app.get("/location/suggestions")
+async def get_location_suggestions(input: str = Query(..., min_length=1)):
+    url = "https://nominatim.openstreetmap.org/search"
+    params = {
+        "q": input,
+        "format": "json",
+        "addressdetails": 1,
+        "limit": 5,
+        "countrycodes": "pk"  # 🔍 Filter to Pakistan only
+    }
+
+    headers = {
+        "User-Agent": "MyApp/1.0"
+    }
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url, params=params, headers=headers)
+        data = response.json()
+
+    suggestions = [item["display_name"] for item in data]
+    return {"suggestions": suggestions}
 
 
 
