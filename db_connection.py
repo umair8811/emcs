@@ -34,21 +34,25 @@ try:
      ''')
     
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS UnverifiedUsers (
-            token TEXT PRIMARY KEY,
-            first_name TEXT NOT NULL,
-            last_name TEXT NOT NULL,
-            business_name TEXT,
-            email TEXT NOT NULL UNIQUE,
-            active_status BOOLEAN NOT NULL,
-            password TEXT NOT NULL,
-            location TEXT,
-            contact TEXT,
-            user_type_id INTEGER NOT NULL,
-            profile_type_id INTEGER NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+    CREATE TABLE IF NOT EXISTS UnverifiedUsers (
+        token TEXT PRIMARY KEY,
+        first_name TEXT NOT NULL,
+        last_name TEXT NOT NULL,
+        business_name TEXT,
+        email TEXT NOT NULL UNIQUE,
+        active_status INTEGER NOT NULL CHECK (active_status IN (0, 1)),
+        password TEXT NOT NULL,
+        location TEXT,
+        contact TEXT,
+        user_type_id INTEGER NOT NULL,
+        profile_type_id INTEGER NOT NULL,
+        isActive INTEGER NOT NULL DEFAULT 1 CHECK (isActive IN (0, 1)),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_type_id) REFERENCES User_Type (user_type_id),
+        FOREIGN KEY (profile_type_id) REFERENCES Profile_Type (profile_type_id)
+    )
+""")
+
     # Create Profile_Type table
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS Profile_Type (
