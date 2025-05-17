@@ -34,7 +34,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 # Email sending config
 SENDER_EMAIL = "mohammadumair1412@gmail.com"
-SENDER_PASSWORD = "bqaa cznb rqnx oifv"  # Your Gmail app password here
+SENDER_PASSWORD = "ttwi clhq tzsh lkxv"  # Your Gmail app password here
 BASE_URL = "http://16.171.1.109:8000"
 
 def send_verification_email(email: str, token: str):
@@ -74,20 +74,7 @@ Event Management Team
         raise RuntimeError(f"Failed to send email: {str(e)}")
 
 
-# Pydantic model for user input
-from pydantic import BaseModel, EmailStr
 
-class Users(BaseModel):
-    first_name: str
-    last_name: str
-    business_name: str
-    email: EmailStr
-    active_status: int
-    password: str
-    location: str
-    contact: str
-    user_type_id: int
-    profile_type_id: int
 
 
 @app.post("/Create_Users", status_code=status.HTTP_201_CREATED)
@@ -105,7 +92,7 @@ async def create_users(users: Users):
     cursor.execute("SELECT email FROM UnverifiedUsers WHERE email = ?", (users.email,))
     if cursor.fetchone():
         conn.close()
-        raise HTTPException(status_code=400, detail="Email awaiting verification")
+        raise HTTPException(status_code=400, detail="Email Awaiting verification")
 
     # Create token and store user in UnverifiedUsers
     token = str(uuid.uuid4())

@@ -9,16 +9,16 @@ class User_Type(BaseModel):
     user_type:str
 
 class Users(BaseModel):
-    first_name:str
-    last_name:str
-    business_name:str
-    email:EmailStr
-    active_status:int 
-    password:str
-    location:str
-    contact:str
-    user_type_id:int 
-    profile_type_id:int 
+    first_name: str
+    last_name: str
+    business_name: str
+    email: EmailStr
+    active_status: int
+    password: str
+    location: str
+    contact: str
+    user_type_id: int
+    profile_type_id: int
 class User_SignIn(BaseModel):
     email:EmailStr
     password:str
