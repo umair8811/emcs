@@ -14,6 +14,8 @@ import random
 app = FastAPI()
 temp_users = {}
 
+
+
 @app.post("/send_verification_email")
 def send_verification_email(user: TempUser):
     code = str(random.randint(100000, 999999))
@@ -37,14 +39,27 @@ def verify_email(payload: VerifyEmail):
     conn = sqlite3.connect('event_management.db', timeout=10) 
     cursor = conn.cursor()
 
-    cursor.execute("""INSERT INTO `Users` (`first_name`,`last_name`,`business_name`,`email`,`active_status`,`password`,`location`,`contact`,`user_type_id`,`profile_type_id`) VALUES (?,?,?,?,?,?,?,?,?,?) """,
-        (user.first_name, user.last_name, user.business_name, user.email, 0, hashing_pass(user.password), user.location, user.contact, user.user_type_id, user.profile_type_id))    
+    # Check for existing email
+    cursor.execute("SELECT * FROM Users WHERE email = ?", (user.email,))
+    if cursor.fetchone():
+        conn.close()
+        return JSONResponse(status_code=400, content={"message": "Email is already registered"})
+
+    cursor.execute("""
+        INSERT INTO `Users` (`first_name`, `last_name`, `business_name`, `email`, `active_status`, `password`, `location`, `contact`, `user_type_id`, `profile_type_id`)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        user.first_name, user.last_name, user.business_name, user.email, 0,
+        hashing_pass(user.password), user.location, user.contact,
+        user.user_type_id, user.profile_type_id
+    ))    
 
     conn.commit()
     conn.close()
     del temp_users[payload.email]
 
     return {"message": "User registered successfully"}
+
 
 
 
