@@ -7,12 +7,11 @@ from fastapi import status,FastAPI,HTTPException,Depends,Query
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from typing import Optional
+from dotenv import load_dotenv
+from email_utils import send_verification_email
 import httpx
 import hashlib
 import uuid
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 
 #API instance
 app = FastAPI()
