@@ -32,6 +32,23 @@ try:
         FOREIGN KEY (profile_type_id) REFERENCES Profile_Type (profile_type_id)
     )
      ''')
+    
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS UnverifiedUsers (
+            token TEXT PRIMARY KEY,
+            first_name TEXT NOT NULL,
+            last_name TEXT NOT NULL,
+            business_name TEXT,
+            email TEXT NOT NULL UNIQUE,
+            active_status BOOLEAN NOT NULL,
+            password TEXT NOT NULL,
+            location TEXT,
+            contact TEXT,
+            user_type_id INTEGER NOT NULL,
+            profile_type_id INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
     # Create Profile_Type table
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS Profile_Type (
@@ -45,6 +62,7 @@ try:
         profile_id INTEGER PRIMARY KEY AUTOINCREMENT,
         company_name TEXT NOT NULL,
         contact_detail TEXT NOT NULL,
+        location TEXT NOT NULL,
         experience TEXT NOT NULL,
         thumbnail_image TEXT NOT NULL,
         profile_type_id INTEGER,
@@ -89,8 +107,7 @@ try:
     column_name = "image_desc"
     column_type = "TEXT"
 
-    # SQLite doesn't support an easy way to check if a column exists.
-    # Use a workaround to fetch the table's schema and check manually.
+
     cursor.execute("PRAGMA table_info(Package_images)")
     columns = [info[1] for info in cursor.fetchall()]  # Extract column names
 

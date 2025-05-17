@@ -8,9 +8,99 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from typing import Optional
 import httpx
+import hashlib
+import uuid
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 #API instance
 app = FastAPI()
+
+
+
+# Create user endpoint with email verification
+@app.post("/Create_Users", status_code=status.HTTP_201_CREATED)
+async def create_users(users: Users):
+    # Check if email already exists in Users or UnverifiedUsers
+    conn = sqlite3.connect('event_management.db', timeout=10)
+    cursor = conn.cursor()
+    cursor.execute("SELECT email FROM Users WHERE email = ?", (users.email,))
+    if cursor.fetchone():
+        conn.close()
+        raise HTTPException(status_code=400, detail="Email already registered")
+    cursor.execute("SELECT email FROM UnverifiedUsers WHERE email = ?", (users.email,))
+    if cursor.fetchone():
+        conn.close()
+        raise HTTPException(status_code=400, detail="Email awaiting verification")
+
+    # Generate unique token
+    token = str(uuid.uuid4())
+
+    # Store user data in UnverifiedUsers table
+    cursor.execute("""
+        INSERT INTO UnverifiedUsers (
+            token, first_name, last_name, business_name, email, active_status,
+            password, location, contact, user_type_id, profile_type_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        token, users.first_name, users.last_name, users.business_name, users.email,
+        users.active_status, hashing_pass(users.password), users.location,
+        users.contact, users.user_type_id, users.profile_type_id
+    ))
+
+    conn.commit()
+    conn.close()
+
+    # Send verification email
+    send_verification_email(users.email, token)
+
+    return {"message": "Verification email sent. Please verify your email to complete registration."}
+
+# Verify email endpoint
+@app.get("/verify")
+async def verify_email(token: str):
+    conn = sqlite3.connect('event_management.db', timeout=10)
+    cursor = conn.cursor()
+
+    # Fetch unverified user by token
+    cursor.execute("SELECT * FROM UnverifiedUsers WHERE token = ?", (token,))
+    unverified_user = cursor.fetchone()
+
+    if not unverified_user:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+
+    # Insert into Users table
+    cursor.execute("""
+        INSERT INTO Users (
+            first_name, last_name, business_name, email, active_status,
+            password, location, contact, user_type_id, profile_type_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, unverified_user[1:11])  # Exclude token and created_at
+
+    # Delete from UnverifiedUsers
+    cursor.execute("DELETE FROM UnverifiedUsers WHERE token = ?", (token,))
+
+    # Fetch all users (as in original code)
+    cursor.execute("SELECT * FROM Users")
+    res = cursor.fetchall()
+    keys = ['user_id', 'first_name', 'last_name', 'business_name', 'email',
+            'active_status', 'password', 'location', 'contact', 'user_type_id', 'profile_type_id']
+    users_dict_list = [dict(zip(keys, item)) for item in res]
+
+    conn.commit()
+    conn.close()
+
+    return {"message": "Email verified successfully", "users": users_dict_list}
+
+
+
+
+
+
+
+
  
 
 
@@ -253,25 +343,25 @@ def delete_user_User_Type(delete_User_Type_id: int):
     return {"users_User_Type": users_User_Type}
 
 
-#create_SignUp
-@app.post("/Create_Users",status_code=status.HTTP_201_CREATED)
-def Create_Users(Users:Users):
+# #create_SignUp
+# @app.post("/Create_Users",status_code=status.HTTP_201_CREATED)
+# def Create_Users(Users:Users):
    
-    conn = sqlite3.connect('event_management.db', timeout=10) 
-    cursor = conn.cursor()
+#     conn = sqlite3.connect('event_management.db', timeout=10) 
+#     cursor = conn.cursor()
 
-    cursor.execute("""INSERT INTO `Users` (`first_name`,`last_name`,`business_name`,`email`,`active_status`,`password`,`location`,`contact`,`user_type_id`,`profile_type_id`) VALUES (?,?,?,?,?,?,?,?,?,?) """,
-    (Users.first_name,Users.last_name,Users.business_name,Users.email,Users.active_status,hashing_pass(Users.password),Users.location,Users.contact,Users.user_type_id,Users.profile_type_id))    
+#     cursor.execute("""INSERT INTO `Users` (`first_name`,`last_name`,`business_name`,`email`,`active_status`,`password`,`location`,`contact`,`user_type_id`,`profile_type_id`) VALUES (?,?,?,?,?,?,?,?,?,?) """,
+#     (Users.first_name,Users.last_name,Users.business_name,Users.email,Users.active_status,hashing_pass(Users.password),Users.location,Users.contact,Users.user_type_id,Users.profile_type_id))    
 
 
-    conn.commit()
-    res = cursor.execute(""" Select * from `Users` """)
-    res =cursor.fetchall();
-    keys = ['user_id','first_name','last_name','business_name','email','active_status','password','location','contact','user_type_id','profile_type_id']
-    users_dict_list = [dict(zip(keys, item)) for item in res]
-    conn.commit()
-    conn.close()
-    return {"users ":users_dict_list}
+#     conn.commit()
+#     res = cursor.execute(""" Select * from `Users` """)
+#     res =cursor.fetchall();
+#     keys = ['user_id','first_name','last_name','business_name','email','active_status','password','location','contact','user_type_id','profile_type_id']
+#     users_dict_list = [dict(zip(keys, item)) for item in res]
+#     conn.commit()
+#     conn.close()
+#     return {"users ":users_dict_list}
 
 
 
