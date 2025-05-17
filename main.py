@@ -5,6 +5,7 @@ import json
 
 from fastapi import status,FastAPI,HTTPException,Depends,Query
 from concurrent.futures import ThreadPoolExecutor
+from fastapi.responses import JSONResponse
 from datetime import datetime, timedelta
 from typing import Optional
 import httpx
@@ -13,6 +14,60 @@ import random
 #API instance
 app = FastAPI()
 temp_users = {}
+
+
+
+
+
+
+DATABASE = 'event_management.db'
+
+def get_db_connection():
+    conn = sqlite3.connect(DATABASE, timeout=10)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON;")
+    return conn
+
+@app.post("/messages/send", response_model=MessageOut)
+def send_message(msg: MessageIn):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO Messages (sender_id, receiver_id, message_text) VALUES (?, ?, ?)",
+        (msg.sender_id, msg.receiver_id, msg.message_text),
+    )
+    conn.commit()
+    message_id = cursor.lastrowid
+    cursor.execute("SELECT * FROM Messages WHERE message_id = ?", (message_id,))
+    row = cursor.fetchone()
+    conn.close()
+    if row:
+        return MessageOut(**dict(row))
+    else:
+        raise HTTPException(status_code=500, detail="Message sending failed")
+
+@app.get("/messages/{user_id}/inbox", response_model=List[MessageOut])
+def get_inbox(user_id: int):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT * FROM Messages WHERE receiver_id = ? ORDER BY sent_at DESC",
+        (user_id,),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return [MessageOut(**dict(row)) for row in rows]
+
+
+
+
+
+
+
+
+
+
+
 
 
 
