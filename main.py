@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from typing import Optional
 from dotenv import load_dotenv
-from email_utils import send_verification_email
+from functions import send_verification_email
 import httpx
 import hashlib
 import uuid
