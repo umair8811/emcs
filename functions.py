@@ -47,10 +47,12 @@ Event Management Team
 
     try:
         server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
+        server.set_debuglevel(1)
         server.starttls()
         server.login(SENDER_EMAIL, SENDER_PASSWORD)
         server.sendmail(SENDER_EMAIL, email, msg.as_string())
         server.quit()
     except Exception as e:
+        print("Email sending error:", e)
         raise RuntimeError(f"Failed to send email: {str(e)}")
     
