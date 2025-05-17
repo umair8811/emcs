@@ -63,7 +63,7 @@ class MessageOut(BaseModel):
     receiver_id: int
     message_text: str
     sent_at: str
-    is_read: int
+    is_read: bool
 
 class update_Profile(BaseModel):
     profile_id:int 

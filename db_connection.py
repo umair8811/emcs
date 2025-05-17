@@ -12,6 +12,7 @@ try:
     user_type_id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_type TEXT NOT NULL)
     ''')
+
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS Messages (
         message_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -19,9 +20,7 @@ try:
         receiver_id INTEGER NOT NULL,
         message_text TEXT NOT NULL,
         sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        is_read INTEGER NOT NULL DEFAULT 0 CHECK (is_read IN (0, 1)),
-        FOREIGN KEY (sender_id) REFERENCES Users (user_id),
-        FOREIGN KEY (receiver_id) REFERENCES Users (user_id)
+        is_read INTEGER NOT NULL DEFAULT 0 CHECK (is_read IN (0, 1))
     )
     ''')
 
