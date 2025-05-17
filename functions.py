@@ -54,30 +54,3 @@ Event Management Team
     except Exception as e:
         raise RuntimeError(f"Failed to send email: {str(e)}")
     
-
-
-
-# # Function to send verification email
-# def send_verification_email(email: str, token: str):
-#     sender_email = "your_email@gmail.com"           # ✅ Your Gmail address
-#     sender_password = "your_app_password"           # ✅ Gmail App Password (not your normal password)
-
-#     # ✅ Your actual FastAPI server IP and verification endpoint
-#     verification_link = f"http://16.171.1.109:8000/verify?token={token}"
-
-#     msg = MIMEMultipart()
-#     msg['From'] = sender_email
-#     msg['To'] = email
-#     msg['Subject'] = "Verify Your Email Address"
-
-#     body = f"Please verify your email by clicking the following link:\n{verification_link}"
-#     msg.attach(MIMEText(body, 'plain'))
-
-#     try:
-#         server = smtplib.SMTP('smtp.gmail.com', 587)
-#         server.starttls()
-#         server.login(sender_email, sender_password)
-#         server.sendmail(sender_email, email, msg.as_string())
-#         server.quit()
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")

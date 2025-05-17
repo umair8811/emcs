@@ -8,12 +8,10 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from typing import Optional
 from dotenv import load_dotenv
-from functions import send_verification_email
 import httpx
 import hashlib
 import uuid
 
-#API instance
 app = FastAPI()
 
 
@@ -39,15 +37,16 @@ async def create_users(users: Users):
 
     # Create token and save user in UnverifiedUsers
     token = str(uuid.uuid4())
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     cursor.execute("""
-        INSERT INTO UnverifiedUsers (
-            token, first_name, last_name, business_name, email, active_status,
-            password, location, contact, user_type_id, profile_type_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
+    INSERT INTO UnverifiedUsers (
+        token, first_name, last_name, business_name, email, active_status,
+        password, location, contact, user_type_id, profile_type_id, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+""", (
         token, users.first_name, users.last_name, users.business_name, users.email,
-        users.active_status, hashing_pass(users.password), users.location,
-        users.contact, users.user_type_id, users.profile_type_id
+    users.active_status, hashing_pass(users.password), users.location,
+    users.contact, users.user_type_id, users.profile_type_id, now
     ))
 
     conn.commit()
