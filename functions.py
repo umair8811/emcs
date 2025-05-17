@@ -1,9 +1,9 @@
 from passlib.context import CryptContext
 from dotenv import load_dotenv
-from email.mime.text import MIMEText
+import smtplib
+import re
 from email.mime.multipart import MIMEMultipart
-from fastapi import HTTPException
-
+from email.mime.text import MIMEText
 
 
 pwd_context = CryptContext(schemes=["bcrypt"],deprecated="auto")
@@ -14,48 +14,47 @@ def hash_Password_check(plain_password,hashed_password):
 def hashing_pass(password :str):
     return pwd_context.hash(password)
 
-load_dotenv()
+
+
+SENDER_EMAIL = "mohammadumair1412@gmail.com"
+SENDER_PASSWORD = "bqaa cznb rqnx oifv"  # Your Gmail app password
+BASE_URL = "http://16.171.1.109:8000"
 
 def send_verification_email(email: str, token: str):
-    sender_email = os.getenv("SENDER_EMAIL")
-    sender_password = os.getenv("SENDER_PASSWORD")
-    base_url = os.getenv("BASE_URL")
-
-    # Email format validation
     if not re.match(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$', email):
-        raise HTTPException(status_code=400, detail="Invalid email address")
+        raise ValueError("Invalid email address")
 
-    verification_link = f"{base_url}/verify?token={token}"
+    verification_link = f"{BASE_URL}/verify?token={token}"
 
     msg = MIMEMultipart()
-    msg['From'] = sender_email
+    msg['From'] = SENDER_EMAIL
     msg['To'] = email
     msg['Subject'] = "Verify Your Email Address"
 
     body = f"""
-    Hello,
+Hello,
 
-    Please verify your email address by clicking the link below:
+Please verify your email address by clicking the link below:
 
-    {verification_link}
+{verification_link}
 
-    This link will expire in 24 hours.
+This link will expire in 24 hours.
 
-    Best regards,
-    Event Management Team
-    """
+Best regards,
+Event Management Team
+"""
     msg.attach(MIMEText(body, 'plain'))
 
     try:
         server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
         server.starttls()
-        server.login(sender_email, sender_password)
-        server.sendmail(sender_email, email, msg.as_string())
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        server.sendmail(SENDER_EMAIL, email, msg.as_string())
         server.quit()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
+        raise RuntimeError(f"Failed to send email: {str(e)}")
     
-    
+
 
 
 # # Function to send verification email

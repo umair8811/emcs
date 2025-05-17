@@ -56,6 +56,8 @@ async def create_users(users: Users):
     send_verification_email(users.email, token)
     return {"message": "Verification email sent. Please verify to complete registration."}
 
+
+
 @app.get("/verify")
 async def verify_email(token: str):
     conn = sqlite3.connect('event_management.db')
