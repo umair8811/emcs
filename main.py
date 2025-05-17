@@ -1,175 +1,51 @@
 from db_connection import *
 from functions import *
 from BaseModels import *
-
+import json
 
 from fastapi import status,FastAPI,HTTPException,Depends,Query
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
-from passlib.context import CryptContext
 from typing import Optional
-from dotenv import load_dotenv
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 import httpx
-import hashlib
-import uuid
-import re
-import json
-import sqlite3
-import smtplib
 
-
+#API instance
 app = FastAPI()
-
-# Password hashing setup
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-# Email sending config
-SENDER_EMAIL = "mohammadumair1412@gmail.com"
-SENDER_PASSWORD = "ttwi clhq tzsh lkxv"  # Your Gmail app password here
-BASE_URL = "http://16.171.1.109:8000"
-
-def send_verification_email(email: str, token: str):
-    if not re.match(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$', email):
-        raise ValueError("Invalid email address")
-
-    verification_link = f"{BASE_URL}/verify?token={token}"
-
-    msg = MIMEMultipart()
-    msg['From'] = SENDER_EMAIL
-    msg['To'] = email
-    msg['Subject'] = "Verify Your Email Address"
-
-    body = f"""
-Hello,
-
-Please verify your email address by clicking the link below:
-
-{verification_link}
-
-This link will expire in 24 hours.
-
-Best regards,
-Event Management Team
-"""
-    msg.attach(MIMEText(body, 'plain'))
-
-    try:
-        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
-        server.set_debuglevel(1)  # Enable SMTP debug output
-        server.starttls()
-        server.login(SENDER_EMAIL, SENDER_PASSWORD)
-        server.sendmail(SENDER_EMAIL, email, msg.as_string())
-        server.quit()
-    except Exception as e:
-        print("Email sending error:", e)
-        raise RuntimeError(f"Failed to send email: {str(e)}")
-
-
-
-
-
-@app.post("/Create_Users", status_code=status.HTTP_201_CREATED)
-async def create_users(users: Users):
-    conn = sqlite3.connect('event_management.db')
-    cursor = conn.cursor()
-
-    # Check for existing email in Users table
-    cursor.execute("SELECT email FROM Users WHERE email = ?", (users.email,))
-    if cursor.fetchone():
-        conn.close()
-        raise HTTPException(status_code=400, detail="Email already registered")
-
-    # Check for existing email in UnverifiedUsers table
-    cursor.execute("SELECT email FROM UnverifiedUsers WHERE email = ?", (users.email,))
-    if cursor.fetchone():
-        conn.close()
-        raise HTTPException(status_code=400, detail="Email Awaiting verification")
-
-    # Create token and store user in UnverifiedUsers
-    token = str(uuid.uuid4())
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    hashed_password = hash_password(users.password)
-
-    cursor.execute("""
-        INSERT INTO UnverifiedUsers (
-            token, first_name, last_name, business_name, email, active_status,
-            password, location, contact, user_type_id, profile_type_id, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        token, users.first_name, users.last_name, users.business_name, users.email,
-        users.active_status, hashed_password, users.location,
-        users.contact, users.user_type_id, users.profile_type_id, now
-    ))
-
-    conn.commit()
-    conn.close()
-
-    send_verification_email(users.email, token)
-
-    return {"message": "Verification email sent. Please verify to complete registration."}
-
-
-@app.get("/verify")
-async def verify_email(token: str):
-    conn = sqlite3.connect('event_management.db')
-    cursor = conn.cursor()
-
-    # Find unverified user by token
-    cursor.execute("SELECT * FROM UnverifiedUsers WHERE token = ?", (token,))
-    unverified_user = cursor.fetchone()
-
-    if not unverified_user:
-        conn.close()
-        raise HTTPException(status_code=400, detail="Invalid or expired token")
-
-    # Check token expiration (assuming created_at is at index 11)
-    created_at_str = unverified_user[11]  # 12th column: created_at
-    created_at = datetime.strptime(created_at_str, "%Y-%m-%d %H:%M:%S")
-    if datetime.now() - created_at > timedelta(hours=24):
-        conn.close()
-        raise HTTPException(status_code=400, detail="Token expired")
-
-    # Insert user into Users table with isActive=1
-    cursor.execute("""
-        INSERT INTO Users (
-            first_name, last_name, business_name, email, active_status,
-            password, location, contact, user_type_id, profile_type_id, isActive
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (*unverified_user[1:11], 1))  # Use slice for user data + isActive=1
-
-    # Delete user from UnverifiedUsers
-    cursor.execute("DELETE FROM UnverifiedUsers WHERE token = ?", (token,))
-    conn.commit()
-
-    # Return all users without passwords
-    cursor.execute("SELECT * FROM Users")
-    users = cursor.fetchall()
-    keys = ['user_id', 'first_name', 'last_name', 'business_name', 'email',
-            'active_status', 'password', 'location', 'contact', 'user_type_id', 'profile_type_id', 'isActive']
-
-    user_list = [dict(zip(keys, row)) for row in users]
-    for user in user_list:
-        user.pop("password", None)  # Remove password for security
-
-    conn.close()
-
-    return {"message": "Email verified successfully", "users": user_list}
-
-
-
-
-
  
+
+@app.post("/send_verification_email")
+def send_verification_email(user: TempUser):
+    code = str(random.randint(100000, 999999))
+    temp_users[user.email] = {
+        "data": user,
+        "code": code
+    }
+
+    send_email(user.email, code)  # <-- actual email sending
+    return {"message": "Verification code sent to your email"}
+
+
+
+@app.post("/verify_email")
+def verify_email(payload: VerifyEmail):
+    stored = temp_users.get(payload.email)
+    if not stored or stored["code"] != payload.code:
+        return JSONResponse(status_code=400, content={"message": "Invalid verification code"})
+
+    user = stored["data"]
+    conn = sqlite3.connect('event_management.db', timeout=10) 
+    cursor = conn.cursor()
+
+    cursor.execute("""INSERT INTO `Users` (`first_name`,`last_name`,`business_name`,`email`,`active_status`,`password`,`location`,`contact`,`user_type_id`,`profile_type_id`) VALUES (?,?,?,?,?,?,?,?,?,?) """,
+        (user.first_name, user.last_name, user.business_name, user.email, 0, hashing_pass(user.password), user.location, user.contact, user.user_type_id, user.profile_type_id))    
+
+    conn.commit()
+    conn.close()
+    del temp_users[payload.email]
+
+    return {"message": "User registered successfully"}
+
+
 
 
 

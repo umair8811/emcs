@@ -11,14 +11,30 @@ class User_Type(BaseModel):
 class Users(BaseModel):
     first_name: str
     last_name: str
-    business_name: str
+    business_name: Optional[str] = None
     email: EmailStr
-    active_status: int
+    active_status: bool = True
     password: str
     location: str
     contact: str
     user_type_id: int
     profile_type_id: int
+
+class TempUser(BaseModel):
+    first_name: str
+    last_name: str
+    business_name: str
+    email: str
+    password: str
+    location: str
+    contact: str
+    user_type_id: int
+    profile_type_id: int
+
+class VerifyEmail(BaseModel):
+    email: str
+    code: str
+    
 class User_SignIn(BaseModel):
     email:EmailStr
     password:str
