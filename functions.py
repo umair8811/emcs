@@ -18,8 +18,8 @@ def hashing_pass(password :str):
 # Function to send verification email
 def send_verification_email(email: str, token: str):
     # Get credentials from environment variables
-    sender_email = os.getenv("SENDER_EMAIL", "your_email@gmail.com")
-    sender_password = os.getenv("SENDER_PASSWORD", "your_app_password")
+    sender_email = os.getenv("SENDER_EMAIL", "mohammadumair1412@gmail.com")
+    sender_password = os.getenv("SENDER_PASSWORD", "gvsx ioog lgzg cdyy")
     base_url = os.getenv("BASE_URL", "http://16.171.1.109:8000")
 
     # Validate email format
