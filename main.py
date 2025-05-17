@@ -8,10 +8,11 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from typing import Optional
 import httpx
+import random
 
 #API instance
 app = FastAPI()
- 
+temp_users = {}
 
 @app.post("/send_verification_email")
 def send_verification_email(user: TempUser):
