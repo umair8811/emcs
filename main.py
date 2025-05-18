@@ -13,7 +13,6 @@ import random
 
 #API instance
 app = FastAPI()
-temp_users = {}
 
 
 
