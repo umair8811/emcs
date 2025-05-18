@@ -52,18 +52,18 @@ class Profile(BaseModel):
     profile_type_id:int 
     user_id:int 
     
-class MessageIn(BaseModel):
+class MessageCreate(BaseModel):
     sender_id: int
     receiver_id: int
     message_text: str
 
-class MessageOut(BaseModel):
+class Message(BaseModel):
     message_id: int
     sender_id: int
     receiver_id: int
     message_text: str
     sent_at: str
-    is_read: bool
+    is_read: int
 
 class update_Profile(BaseModel):
     profile_id:int 
