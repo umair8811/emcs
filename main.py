@@ -13,80 +13,7 @@ import random
 
 #API instance
 app = FastAPI()
-
-
-
-
-
-DATABASE = 'event_management.db'
-def get_db_connection():
-    conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-@app.post("/messages/send", response_model=Message)
-def send_message(msg: MessageCreate):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO Messages (sender_id, receiver_id, message_text)
-        VALUES (?, ?, ?)
-    """, (msg.sender_id, msg.receiver_id, msg.message_text))
-    conn.commit()
-
-    message_id = cursor.lastrowid
-    cursor.execute("SELECT * FROM Messages WHERE message_id = ?", (message_id,))
-    row = cursor.fetchone()
-    conn.close()
-    return dict(row)
-
-@app.get("/messages/conversation/{user1_id}/{user2_id}", response_model=List[Message])
-def get_conversation(user1_id: int, user2_id: int):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT * FROM Messages
-        WHERE (sender_id = ? AND receiver_id = ?) OR
-              (sender_id = ? AND receiver_id = ?)
-        ORDER BY sent_at ASC
-    """, (user1_id, user2_id, user2_id, user1_id))
-    messages = cursor.fetchall()
-    conn.close()
-    return [dict(msg) for msg in messages]
-
-@app.get("/messages/inbox/{user_id}", response_model=List[Message])
-def get_inbox(user_id: int):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT * FROM Messages
-        WHERE receiver_id = ?
-        ORDER BY sent_at DESC
-    """, (user_id,))
-    messages = cursor.fetchall()
-    conn.close()
-    return [dict(msg) for msg in messages]
-
-@app.put("/messages/read/{message_id}")
-def mark_message_as_read(message_id: int):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        UPDATE Messages SET is_read = 1 WHERE message_id = ?
-    """, (message_id,))
-    conn.commit()
-    conn.close()
-    return {"message": "Marked as read."}
-
-
-
-
-
-
-
-
-
-
+temp_users = {}
 
 
 
@@ -385,7 +312,7 @@ def delete_user_User_Type(delete_User_Type_id: int):
 #     cursor = conn.cursor()
 
 #     cursor.execute("""INSERT INTO `Users` (`first_name`,`last_name`,`business_name`,`email`,`active_status`,`password`,`location`,`contact`,`user_type_id`,`profile_type_id`) VALUES (?,?,?,?,?,?,?,?,?,?) """,
-#     (Users.first_name,Users.last_name,Users.business_name,Users.email,Users.active_status,hashing_pass(Users.password),Users.location,Users.contact,  .user_type_id,Users.profile_type_id))    
+#     (Users.first_name,Users.last_name,Users.business_name,Users.email,Users.active_status,hashing_pass(Users.password),Users.location,Users.contact,Users.user_type_id,Users.profile_type_id))    
 
 
 #     conn.commit()
@@ -834,8 +761,6 @@ async def profile_type(user_id: int):
         raise HTTPException(status_code=404, detail="No profiles found for the specified user_id.")
   
     return {"profile_detail": profile_dict_list}
-
-
 
 @app.get("/Users")
 def Users():  

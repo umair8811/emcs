@@ -51,19 +51,6 @@ class Profile(BaseModel):
     Thumbnail_Image:str
     profile_type_id:int 
     user_id:int 
-    
-class MessageCreate(BaseModel):
-    sender_id: int
-    receiver_id: int
-    message_text: str
-
-class Message(BaseModel):
-    message_id: int
-    sender_id: int
-    receiver_id: int
-    message_text: str
-    sent_at: str
-    is_read: int
 
 class update_Profile(BaseModel):
     profile_id:int 
